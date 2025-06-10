@@ -4,7 +4,7 @@
 // Bộ đệm nhận UART
 char rx_buffer[20];
 int rx_index = 0;
-volatile uint8_t button_state = 0; // 0: ban đầu, 1: nháy, 2: sáng liên tục
+volatile uint8_t button_state = 1; // Bắt đầu từ blinking mode (1), loại bỏ initial mode
 volatile uint8_t led_red = 0, led_yellow = 0, led_green = 0; // Trạng thái LED
 
 // Cấu hình UART2 (PA2: TX, PA3: RX)
@@ -175,19 +175,15 @@ void USART2_IRQHandler(void) {
 void EXTI0_IRQHandler(void) {
     if (EXTI->PR & (1 << 0)) {
         EXTI->PR = (1 << 0); // Xóa cờ ngắt
-        if (button_state == 0) {
-            button_state = 1; // Chuyển sang trạng thái nháy
-            TIM2->CR1 &= ~(1 << 0); // Đảm bảo timer tắt trước khi bật lại
-            UART_SendString("Switched to blinking mode\r\n");
-        } else if (button_state == 1) {
+        if (button_state == 1) {
             button_state = 2; // Chuyển sang trạng thái sáng liên tục
             TIM2->CR1 &= ~(1 << 0); // Tắt timer
             GPIOA->ODR &= ~((1 << 5) | (1 << 6) | (1 << 7)); // Tắt tất cả LED
             UART_SendString("Switched to continuous mode\r\n");
         } else if (button_state == 2) {
-            button_state = 0; // Reset về trạng thái ban đầu
-            GPIOA->ODR &= ~((1 << 5) | (1 << 6) | (1 << 7)); // Tắt tất cả LED
-            UART_SendString("Switched to initial mode\r\n");
+            button_state = 1; // Quay lại trạng thái nháy
+            TIM2->CR1 &= ~(1 << 0); // Đảm bảo timer tắt trước khi bật lại
+            UART_SendString("Switched to blinking mode\r\n");
         }
     }
 }
